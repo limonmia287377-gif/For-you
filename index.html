@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>For Mamuni ❤️</title>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #030414;
+  font-family: Arial, sans-serif;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.hint {
+  position: fixed;
+  bottom: 20px;
+  width: 100%;
+  text-align: center;
+  color: #c9d9ff;
+  font: italic 14px cursive;
+  text-shadow: 0 0 9px #8cbaff;
+  pointer-events: none;
+}
+</style>
+</head>
+
+<body>
+
+<canvas id="scene"></canvas>
+
+<div class="hint">
+  Click anywhere to send hearts ♥
+</div>
+
+<script>
+
+const canvas = document.getElementById('scene');
+const ctx = canvas.getContext('2d');
+
+let W, H, dpr;
+let stars = [];
+let heart = [];
+let bursts = [];
+
+let start = performance.now();
+let lastTrail = 0;
+
+const messages = [
+  'Mamuni',
+  'My Love',
+  'Thinking of You',
+  'Always With You',
+  'I Love You',
+  'I Dreamed About You',
+  "You're Special",
+  'Forever & Always'
+];
+
+const rand = (a,b) => a + Math.random() * (b-a);
+
+// Screen resize
+function resize() {
+
+  dpr = Math.min(devicePixelRatio || 1, 2);
+
+  W = innerWidth;
+  H = innerHeight;
+
+  canvas.width = W*dpr;
+  canvas.height = H*dpr;
+
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+
+  stars = Array.from({length:115},()=>({
+    x:rand(0,W),
+    y:rand(0,H),
+    r:rand(.4,2.7),
+    a:rand(.2,.9),
+    p:rand(0,7),
+    s:rand(.08,.4),
+    pink:Math.random()<.12
+  }));
+
+  makeHeart();
+}
+
+// Heart shape
+function point(t) {
+
+  return {
+    x:16*Math.pow(Math.sin(t),3),
+
+    y:-(13*Math.cos(t)
+      -5*Math.cos(2*t)
+      -2*Math.cos(3*t)
+      -Math.cos(4*t))
+  };
+}
+
+// Generate glowing heart
+function makeHeart() {
+
+  let scale = Math.min(W/43,H/43,12);
+  let cx = W/2;
+  let cy = H*.43;
+
+  heart = Array.from({length:240},(_,i)=>{
+
+    let t = i/240*Math.PI*2;
+    let p = point(t);
+
+    return {
+      x:cx+p.x*scale+rand(-4,4),
+      y:cy+p.y*scale+rand(-4,4),
+      r:rand(.8,2.6),
+      phase:rand(0,7),
+      pink:Math.random()<.15
+    };
+
+  });
+}
+
+// Particle
+function particle(x,y,angle,speed,life) {
+
+  return {
+    x,y,
+    vx:Math.cos(angle)*speed,
+    vy:Math.sin(angle)*speed,
+    life,
+    max:life,
+    r:rand(1,3.2),
+    pink:Math.random()<.24
+  };
+}
+
+// Touch heart explosion
+function burst(x,y) {
+
+  for(let i=0;i<45;i++) {
+
+    bursts.push(
+      particle(
+        x,y,
+        rand(0,Math.PI*2),
+        rand(.6,4.8),
+        rand(35,85)
+      )
+    );
+
+  }
+
+  for(let i=0;i<8;i++) {
+
+    let a=rand(0,7);
+    let p=point(a);
+
+    bursts.push(
+      particle(
+        x+p.x*.5,
+        y+p.y*.5,
+        a,
+        rand(.3,2),
+        65
+      )
+    );
+
+  }
+}
+
+// Glowing dots
+function drawDot(x,y,r,alpha,pink=false) {
+
+  ctx.globalAlpha=Math.max(0,alpha);
+
+  ctx.shadowBlur=r*7;
+
+  ctx.shadowColor=pink
+    ? '#ff83eb'
+    : '#378dff';
+
+  ctx.fillStyle=pink
+    ? '#ffc0f5'
+    : '#75b8ff';
+
+  ctx.beginPath();
+  ctx.arc(x,y,r,0,Math.PI*2);
+  ctx.fill();
+
+  ctx.shadowBlur=0;
+  ctx.globalAlpha=1;
+}
+
+// Animation loop
+function frame(now) {
+
+  let elapsed=(now-start)/1000;
+
+  ctx.fillStyle='rgba(3,4,20,.24)';
+  ctx.fillRect(0,0,W,H);
+
+  // Background stars
+  stars.forEach(s=>{
+
+    s.y+=s.s;
+
+    if(s.y>H+5) s.y=-5;
+
+    drawDot(
+      s.x,s.y,s.r,
+      s.a*(.75+.25*Math.sin(now*.002+s.p)),
+      s.pink
+    );
+
+  });
+
+  // Changing love messages
+  let stage=Math.floor(elapsed/3.1)%messages.length;
+
+  let fade=Math.min(
+    1,
+    (elapsed%3.1)*2,
+    (3.1-elapsed%3.1)*2
+  );
+
+  let pulse=1+.025*Math.sin(now*.003);
+
+  // Animated heart
+  heart.forEach(h=>{
+
+    let x=W/2+(h.x-W/2)*pulse;
+    let y=H*.43+(h.y-H*.43)*pulse;
+
+    drawDot(
+      x+Math.sin(now*.001+h.phase)*2,
+      y,
+      h.r,
+      fade*(.45+.5*Math.sin(now*.003+h.phase)**2),
+      h.pink
+    );
+
+  });
+
+  // Love text
+  ctx.save();
+
+  ctx.globalAlpha=Math.max(0,fade);
+  ctx.textAlign='center';
+  ctx.textBaseline='middle';
+
+  ctx.shadowBlur=15;
+  ctx.shadowColor='#67a8ff';
+  ctx.fillStyle='#e0eeff';
+
+  ctx.font=`${Math.max(17,Math.min(26,W/17))}px Arial`;
+
+  ctx.fillText(
+    messages[stage],
+    W/2,
+    H*.43
+  );
+
+  ctx.restore();
+
+  // Burst animation
+  for(let i=bursts.length-1;i>=0;i--){
+
+    let b=bursts[i];
+
+    b.x+=b.vx;
+    b.y+=b.vy;
+
+    b.vx*=.987;
+    b.vy*=.987;
+
+    b.life--;
+
+    drawDot(
+      b.x,b.y,b.r,
+      b.life/b.max,
+      b.pink
+    );
+
+    if(b.life<=0) bursts.splice(i,1);
+
+  }
+
+  requestAnimationFrame(frame);
+}
+
+// Touch interaction
+function touch(e) {
+
+  let x=e.clientX;
+  let y=e.clientY;
+
+  burst(x,y);
+
+  if(performance.now()-lastTrail>35){
+
+    for(let i=0;i<3;i++){
+
+      bursts.push(
+        particle(
+          x,y,
+          rand(0,7),
+          rand(.1,1.1),
+          rand(25,55)
+        )
+      );
+
+    }
+
+    lastTrail=performance.now();
+  }
+}
+
+canvas.addEventListener('pointerdown',touch);
+
+canvas.addEventListener('pointermove',e=>{
+
+  if(e.buttons || e.pointerType==='touch'){
+    touch(e);
+  }
+
+});
+
+addEventListener('resize',resize);
+
+resize();
+requestAnimationFrame(frame);
+
+</script>
+</body>
+</html>
